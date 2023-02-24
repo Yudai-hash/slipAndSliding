@@ -8,6 +8,7 @@
 
 #include <cstdlib> //atexit()関数を定義しているヘッダファイルcstdlibを#includeする
 #include <iostream>
+#include <fstream> //ファイルの入出力を行う
 #include <vector> //C++の標準テンプレートライブラリに含まれるvectorを使用する
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -42,7 +43,31 @@ GLboolean printShaderInfoLog(GLuint shader, const char* str)
 }
 
 //プログラムオブジェクトのリンク結果を表示する
+//program: プログラムオブジェクト名
+GLboolean printProgramInfoLog(GLuint program)
+{
+	//リンク結果を取得する
+	GLint status;
+	//プログラムオブジェクトの情報を取り出す
+	//programに指定したプログラムオブジェクトのリンクが成功したかどうかを調べて，statusに格納する
+	glGetProgramiv(program, GL_LINK_STATUS, & status);
+	if (status == GL_FALSE) std::cerr << "Link Error." << std::endl;
 
+	//シェーダのリンク時のログの長さを取得する
+	GLsizei bufSize;
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &bufSize);
+
+	if(bufSize > 1)
+	{
+		//シェーダのリンク時のログの内容を取得する
+		std::vector<GLchar> infoLog(bufSize);
+		GLsizei lenghth;
+		//シェーダオブジェクトのコンパイル時のログを取り出す
+		glGetProgramInfoLog(program, bufSize, &lenghth, &infoLog[0]);
+		std::cerr << &infoLog[0] << std::endl;
+	}
+	return static_cast<GLboolean>(status);
+}
 
 //プログラムオブジェクトを作成する
 //vsrc:バーテックスシェーダのソースプログラムの文字列
@@ -59,6 +84,12 @@ GLuint createProgram(const char* vsrc, const char* fsrc) {
 
 		glShaderSource(vobj, 1, &vsrc, NULL);
 		glCompileShader(vobj);
+
+		//バーテックスシェーダのシェーダオブジェクトをプログラムオブジェクトに組み込む
+		//シェーダのコンパイル直後のシェーダオブジェクトに対してエラーをチェックする
+		if (printShaderInfoLog(vobj, "vertex shader"))
+			glAttachShader(program, vobj);
+		glDeleteShader(vobj);
 	}
 
 	//ソースプログラムの文字列がNULLのときは，シェーダオブジェクトを作成しないようにする
@@ -72,7 +103,8 @@ GLuint createProgram(const char* vsrc, const char* fsrc) {
 		glCompileShader(fobj);
 
 		//フラグメントシェーダのシェーダオブジェクトをプログラムオブジェクトに組み込む
-		glAttachShader(program, fobj);
+		if(printShaderInfoLog(fobj,"fragment shader"))
+			glAttachShader(program, fobj);
 		//使うあてがないので，シェーダオブジェクトを削除(削除マークをつける)
 		glDeleteShader(fobj);
 	}
@@ -84,9 +116,55 @@ GLuint createProgram(const char* vsrc, const char* fsrc) {
 	glLinkProgram(program);
 
 	//作成したプログラムオブジェクトを返す
-	return program;
+	if(printProgramInfoLog(program))
+		return program;
+
+	//プログラムオブジェクトが作成できなければ0を返す
+	glDeleteProgram(program);
+	return 0;
 }
 
+//シェーダのソースファイルを読み込んだメモリを返す
+//name: シェーダのソースファイル名
+//buffer: 読み込んだソースファイルのテキスト
+bool readShaderSource(const char* name, std::vector<GLchar>& buffer)
+{
+	//ファイル名がNULLだった
+	if (name == NULL) return false;
+
+	//ソースファイルを開く
+	std::ifstream file(name, std::ios::binary);
+	if (file.fail())
+	{
+		//開けなかった
+		std::cerr << "Error: Cannot open source file: " << name << std::endl;
+		return false;
+	}
+
+	//ファイルの末尾に移動し現在位置(＝ファイルサイズ)を得る
+	file.seekg(0L, std::ios::end);
+	GLsizei length = static_cast<GLsizei>(file.tellg());
+
+	//ファイルサイズのメモリを確保
+	buffer.resize(length + 1);
+
+	//ファイルを先頭から読み込む
+	file.seekg(0L, std::ios::beg);
+	file.read(buffer.data(), length);
+	buffer[length] = '\0';
+
+	if (file.fail())
+	{
+		//うまく読み込めなかった
+		std::cerr << "Error: Could not read source file" << name << std::endl;
+		file.close();
+		return false;
+	}
+
+	//読み込み成功
+	file.close();
+	return true;
+}
 
 int main() {
 	//GLFWを初期化する
