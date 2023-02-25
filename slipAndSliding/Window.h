@@ -67,4 +67,17 @@ public:
 		//カラーバッファを入れ替える
 		glfwSwapBuffers(window);
 	}
+
+	//コールバック関数としてメンバ関数を使う場合には，静的メンバ関数である必要がある
+	//ウィンドウのサイズ変更時の処理
+	static void resize(GLFWwindow* const window, int width, int height)
+	{
+		//フレームバッファのサイズを調べ，調べたフレームバッファのサイズの，それぞれ幅と高さをポインタ
+		//に格納する
+		int fbWidth, fbHeight;
+		glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+		//フレームバッファ全体をビューポートに設定する
+		glViewport(0, 0, fbWidth, fbHeight);
+	}
 };

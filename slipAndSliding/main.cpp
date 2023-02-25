@@ -13,6 +13,7 @@
 #include <memory>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include "Window.h"
 #include "Shape.h"
 
 //シェーダオブジェクトのコンパイル結果を表示する
@@ -212,33 +213,36 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT,GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
 
-	//ウィンドウを作成する
-	GLFWwindow* const window(glfwCreateWindow(640, 480, "Hello", NULL, NULL));
-	if (window == NULL) {
-		//ウィンドウが作成できなかった
-		std::cerr << "Cannot create GLFW window." << std::endl;
-		return 1;
-	}
+    //ウィンドウを作成する
+	Window window;
 
-	//作成したウィンドウをOpenGLの処理対象にする
-	glfwMakeContextCurrent(window);
 
-	//GLEWを初期化する
-	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK) {
-		//GLEWの初期化に失敗した
-		std::cerr << "Cannot initialize GLEW" << std::endl;
-		return 1;
-	}
+	//GLFWwindow* const window(glfwCreateWindow(640, 480, "Hello", NULL, NULL));
+	//if (window == NULL) {
+	//	//ウィンドウが作成できなかった
+	//	std::cerr << "Cannot create GLFW window." << std::endl;
+	//	return 1;
+	//}
+	
+	////作成したウィンドウをOpenGLの処理対象にする
+	//glfwMakeContextCurrent(window);
 
-	//垂直同期のタイミングを待つ
-	glfwSwapInterval(1);
+	////GLEWを初期化する
+	//glewExperimental = GL_TRUE;
+	//if (glewInit() != GLEW_OK) {
+	//	//GLEWの初期化に失敗した
+	//	std::cerr << "Cannot initialize GLEW" << std::endl;
+	//	return 1;
+	//}
+
+	////垂直同期のタイミングを待つ
+	//glfwSwapInterval(1);
 
 	//背景色を指定する
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
-	//デバイス座標形状にビューポートを設定する
-	glViewport(100, 50, 300, 300);
+	////デバイス座標形状にビューポートを設定する
+	//glViewport(100, 50, 300, 300);
 
 	//シェーダのソースファイルは，C++のソースファイルとは別に作成した
 	//バーテックスシェーダのソースプログラム
@@ -268,7 +272,10 @@ int main() {
 	std::unique_ptr<const Shape> shape(new Shape(2, 4, rectangleVertex));
 	
 	//ウィンドウが開いている間繰り返す
-	while (glfwWindowShouldClose(window) == GL_FALSE)
+	//glfwWindowShouldClose(window) == GL_FALSE
+	//↓
+	//window
+	while (window)
 	{
 		//ウィンドウを消去する
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -281,10 +288,13 @@ int main() {
 		shape->draw();
 
 		//カラーバッファを入れ替える
-		glfwSwapBuffers(window);
+		//glfwSwapBuffers(window);
+		//↓
+		//window.swapBuffers();
+		window.swapBuffers();
 
 		//イベントを取り出す
-		glfwWaitEvents();
+		//glfwWaitEvents();
 	}
 }
 
