@@ -153,6 +153,14 @@
       </PreprocessorDefinitions>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="point.frag" />
+    <None Include="point.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="Shape.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

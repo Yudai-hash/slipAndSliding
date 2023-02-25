@@ -10,8 +10,10 @@
 #include <iostream>
 #include <fstream> //ファイルの入出力を行う
 #include <vector> //C++の標準テンプレートライブラリに含まれるvectorを使用する
+#include <memory>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include "Shape.h"
 
 //シェーダオブジェクトのコンパイル結果を表示する
 //shader: シェーダオブジェクト名
@@ -166,6 +168,31 @@ bool readShaderSource(const char* name, std::vector<GLchar>& buffer)
 	return true;
 }
 
+//readShaderSource()でソースファイルを読み込み，createProgram()を使用して，プログラムオブジェクトを作成する関数
+//vert: バーテックスシェーダのソースファイル名
+//frag: フラグメントシェーダのソースファイル名
+GLuint loadProgram(const char* vert, const char* frag)
+{
+	//シェーダのソースフィイルを読み込む
+	std::vector<GLchar> vsrc;
+	const bool vstat(readShaderSource(vert, vsrc));
+	std::vector<GLchar> fsrc;
+	const bool fstat(readShaderSource(frag, fsrc));
+
+	//プログラムオブジェクトを作成する
+	//式1 ? 式2 : 式3は，式1が評価され，trueなら式2が評価され，falseなら式3が評価される．
+	return vstat && fstat ? createProgram(vsrc.data(), fsrc.data()) : 0;
+}
+
+//矩形の頂点の位置
+constexpr Object::Vertex rectangleVertex[] =
+{
+	{-0.5f,-0.5f},
+	{1.5f,-0.5f},
+	{1.5f,1.5f},
+	{-0.5f,1.5f}
+};
+
 int main() {
 	//GLFWを初期化する
 	//
@@ -210,29 +237,36 @@ int main() {
 	//背景色を指定する
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
+	//デバイス座標形状にビューポートを設定する
+	glViewport(100, 50, 300, 300);
+
+	//シェーダのソースファイルは，C++のソースファイルとは別に作成した
 	//バーテックスシェーダのソースプログラム
-	static constexpr GLchar vsrc[] =
-		"#version 150 core\n"
-		"in vec4 position;\n"
-		"void main()\n"
-		"{\n"
-		" gl_Position = position;\n"
-		"}\n";
+	//static constexpr GLchar vsrc[] =
+	//	"#version 150 core\n"
+	//	"in vec4 position;\n"
+	//	"void main()\n"
+	//	"{\n"
+	//	" gl_Position = position;\n"
+	//	"}\n";
 
 	//フラグメントシェーダのソースプログラム
 	//画素に赤色を設定
 	//フラグメントの色の出力先のout変数をfragmentという変数名で宣言
-	static constexpr GLchar fsrc[] =
-	   	"#version 150 core\n"
-		"out vec4 fragment;\n"
-		"void main()\n"
-		"{\n"
-		" fragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
-		"}\n";
+	//static constexpr GLchar fsrc[] =
+	//   	"#version 150 core\n"
+	//	"out vec4 fragment;\n"
+	//	"void main()\n"
+	//	"{\n"
+	//	" fragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
+	//	"}\n";
 
 	//プログラムオブジェクトを作成する
-	const GLuint program(createProgram(vsrc,fsrc));
+	const GLuint program(loadProgram("point.vert", "point.frag"));
 
+	//図形データを作成する
+	std::unique_ptr<const Shape> shape(new Shape(2, 4, rectangleVertex));
+	
 	//ウィンドウが開いている間繰り返す
 	while (glfwWindowShouldClose(window) == GL_FALSE)
 	{
@@ -243,7 +277,8 @@ int main() {
 		glUseProgram(program);
 
 
-		//ここで描写処理を行う
+		//図形を描画する
+		shape->draw();
 
 		//カラーバッファを入れ替える
 		glfwSwapBuffers(window);
