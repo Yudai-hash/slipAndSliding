@@ -14,7 +14,11 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "Window.h"
+#include "Matrix.h"
 #include "Shape.h"
+#include "ShapeIndex.h"
+#include "SolidShapeIndex.h"
+#include "SolidShape.h"
 
 //シェーダオブジェクトのコンパイル結果を表示する
 //shader: シェーダオブジェクト名
@@ -114,6 +118,8 @@ GLuint createProgram(const char* vsrc, const char* fsrc) {
 
 	//プログラムオブジェクトをリンクする
 	glBindAttribLocation(program, 0, "position");
+	//バーテックスシェーダのattribute変数colorを追加する．colorのattribute変数の場所は，1とする．
+	glBindAttribLocation(program, 1, "color");
 	//フラグメントシェーダのソースプログラム中のout変数にカラーバッファを割り当てる
 	glBindFragDataLocation(program, 0, "fragment");
 	glLinkProgram(program);
@@ -185,13 +191,128 @@ GLuint loadProgram(const char* vert, const char* frag)
 	return vstat && fstat ? createProgram(vsrc.data(), fsrc.data()) : 0;
 }
 
-//矩形の頂点の位置
-constexpr Object::Vertex rectangleVertex[] =
+//八面体の頂点の位置
+//頂点の数＝面の数×一つの面に含まれる辺の数÷一つの頂点を共有する面の数＝8×3÷4=6
+//一筆書きしたときに12回頂点を指定するから？
+constexpr Object::Vertex octahedronVertex[] =
 {
-	{-0.5f,-0.5f},
-	{1.5f,-0.5f},
-	{1.5f,1.5f},
-	{-0.5f,1.5f}
+	{0.0f, 1.0f, 0.0f},
+	{-1.0f, 0.0f, 0.0f},
+	{0.0f, -1.0f, 0.0f},
+	{1.0f, 0.0f, 0.0f},
+	{0.0f, 1.0f, 0.0f},
+	{0.0f, 0.0f, 1.0f},
+	{0.0f, -1.0f, 0.0f},
+	{0.0f, 0.0f, -1.0f},
+	{-1.0f, 0.0f, 0.0f},
+	{0.0f, 0.0f, 1.0f},
+	{1.0f, 0.0f, 0.0f},
+	{0.0f, 0.0f, -1.0f}
+};
+
+//六面体の頂点の位置
+constexpr Object::Vertex cubeVertex[] =
+{
+	{-1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f}, //(0)
+	{-1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.8f}, //(1)
+	{-1.0f,  1.0f, 1.0f, 0.0f, 0.8f, 0.0f}, //(2)
+	{-1.0f,  1.0f, -1.0f, 0.0f, 0.8f, 0.8f}, //(3)
+	{ 1.0f,  1.0f, -1.0f, 0.8f, 0.0f, 0.0f}, //(4)
+	{ 1.0f, -1.0f, -1.0f, 0.8f, 0.0f, 0.8f}, //(5)
+	{ 1.0f, -1.0f,  1.0f, 0.8f, 0.8f, 0.0f}, //(6)
+	{ 1.0f,  1.0f,  1.0f, 0.8f, 0.8f, 0.8f} //(7)
+};
+
+//六面体の稜線の両端点のインデックス
+constexpr GLuint wireCubeIndex[] =
+{
+	1, 0, //(a)
+	2, 7, //(b)
+	3, 0, //(c)
+	4, 7, //(d)
+	5, 0, //(e)
+	6, 7, //(f)
+	1, 2, //(g)
+	2, 3, //(h)
+	3, 4, //(i)
+	4, 5, //(j)
+	5, 6, //(k)
+	6, 1, //(l)
+};
+
+//六面体の面を塗りつぶす三角形の頂点のインデックス
+//constexpr GLuint solidCubeIndex[] =
+//{
+//	0, 1, 2, 0, 2, 3, //左
+//	0, 3, 4, 0, 4, 5, //裏
+//	0, 5, 6, 0, 6, 1, //下
+//	7, 6, 5, 7, 5, 4, //右
+//	7, 4, 3, 7, 3, 2, //上
+//	7, 2, 1, 7, 1, 6 //前
+//};
+
+//面ごとに色を変えた六面体の頂点属性
+constexpr Object::Vertex solidCubeVertex[] =
+{
+	//左
+	{-1.0f, -1.0f, -1.0f, 0.1f, 0.8f, 0.1f},
+	{-1.0f, -1.0f, 1.0f, 0.1f, 0.8f, 0.1f},
+	{-1.0f, 1.0f, 1.0f, 0.1f, 0.8f, 0.1f},
+	{-1.0f, -1.0f, -1.0f, 0.1f, 0.8f, 0.1f},
+	{-1.0f, 1.0f, 1.0f, 0.1f, 0.8f, 0.1f},
+	{-1.0f, 1.0f, -1.0f, 0.1f, 0.8f, 0.1f},
+
+	//裏
+	{1.0f, -1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+	{-1.0f, -1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+	{-1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+	{1.0f, -1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+	{-1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+	{1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.8f},
+
+	//下
+	{-1.0f, -1.0f, -1.0f, 0.1f, 0.8f, 0.8f},
+	{1.0f, -1.0f, -1.0f, 0.1f, 0.8f, 0.8f},
+	{1.0f, -1.0f, 1.0f, 0.1f, 0.8f, 0.8f},
+	{-1.0f, -1.0f, -1.0f, 0.1f, 0.8f, 0.8f},
+	{1.0f, -1.0f, 1.0f, 0.1f, 0.8f, 0.8f},
+	{-1.0f, -1.0f, 1.0f, 0.1f, 0.8f, 0.8f},
+
+	//右
+	{1.0f, -1.0f, 1.0f, 0.1f, 0.1f, 0.8f},
+	{1.0f, -1.0f, -1.0f, 0.1f, 0.1f, 0.8f},
+	{1.0f, 1.0f, -1.0f, 0.1f, 0.1f, 0.8f},
+	{1.0f, -1.0f, 1.0f, 0.1f, 0.1f, 0.8f},
+	{1.0f, 1.0f, -1.0f, 0.1f, 0.1f, 0.8f},
+	{1.0f, 1.0f, 1.0f, 0.1f, 0.1f, 0.8f},
+	
+	//上
+	{-1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.1f},
+	{-1.0f, 1.0f, 1.0f, 0.8f, 0.1f, 0.1f},
+	{1.0f, 1.0f, 1.0f, 0.8f, 0.1f, 0.1f},
+	{-1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.1f},
+	{1.0f, 1.0f, 1.0f, 0.8f, 0.1f, 0.1f},
+	{1.0f, 1.0f, -1.0f, 0.8f, 0.1f, 0.1f},
+	
+	//前
+	{-1.0f, -1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+	{1.0f, -1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+	{1.0f, 1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+	{-1.0f, -1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+	{1.0f, 1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+	{-1.0f, 1.0f, 1.0f, 0.8f, 0.8f, 0.1f},
+};
+
+//六面体の面を塗りつぶす三角形の頂点のインデックス
+//面ごとに独立する(同じ頂点番号を持たない)ように変更します
+constexpr GLuint solidCubeIndex[] =
+{
+	0, 1, 2, 3, 4, 5, //左
+	6, 7, 8, 9, 10, 11, //裏
+	12, 13, 14, 15, 16, 17, //下
+	18, 19, 20, 21, 22, 23, //右
+	24, 25, 26, 27, 28, 29, //上
+	30, 31, 32, 33, 34, 35, //前
 };
 
 int main() {
@@ -241,6 +362,19 @@ int main() {
 	//背景色を指定する
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
+	//背面カリングを有効にする
+	glFrontFace(GL_CCW); //頂点が左回りの面を表
+	glCullFace(GL_BACK); //裏面を削除する
+	glEnable(GL_CULL_FACE); //背面カリングを有効にする
+
+	//デプスバッファを有効にする
+	//デプスバッファに設定する深度
+	glClearDepth(1.0);
+	//奥行きの比較関数(ポリゴンの深度がデプスバッファより小さければ表示する)
+	glDepthFunc(GL_LESS);
+	//デプスバッファ法による陰面消去処理を有効
+	glEnable(GL_DEPTH_TEST);
+	
 	////デバイス座標形状にビューポートを設定する
 	//glViewport(100, 50, 300, 300);
 
@@ -268,9 +402,26 @@ int main() {
 	//プログラムオブジェクトを作成する
 	const GLuint program(loadProgram("point.vert", "point.frag"));
 
+	//uniform変数の場所を取得する
+	//aspectは，オブジェクト名
+	//const GLint aspectLoc(glGetUniformLocation(program, "aspect"));
+
+	//uniform変数の場所を取得する
+	//const GLint sizeLoc(glGetUniformLocation(program, "size"));
+	//const GLint scaleLoc(glGetUniformLocation(program, "scale"));
+	//const GLint locationLoc(glGetUniformLocation(program, "location"));
+
+	//uniform変数の場所を取得する
+	const GLint modelviewLoc(glGetUniformLocation(program, "modelview"));
+	const GLint projectionLoc(glGetUniformLocation(program, "projection")); //投影変換行列をバーテックスシェーダに渡すため
+
 	//図形データを作成する
-	std::unique_ptr<const Shape> shape(new Shape(2, 4, rectangleVertex));
+	//１頂点あたりの要素数３，頂点数は１２
+	std::unique_ptr<const Shape> shape(new SolidShapeIndex(3, 36, solidCubeVertex,36,solidCubeIndex));
 	
+	//タイマを0にセット
+	glfwSetTime(0.0);
+
 	//ウィンドウが開いている間繰り返す
 	//glfwWindowShouldClose(window) == GL_FALSE
 	//↓
@@ -278,13 +429,67 @@ int main() {
 	while (window)
 	{
 		//ウィンドウを消去する
-		glClear(GL_COLOR_BUFFER_BIT);
+		//GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BITとすることで，カラーバッファとデプスバッファを同時に塗りつぶすことができる
+		//デプスバッファに設定する深度を指定
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//シェーダオブジェクトの使用開始(図形の描写に使用するプログラムオブジェクトを指定する)
 		glUseProgram(program);
 
+		//uniform変数に値を設定する
+		//glUniform2fv(sizeLoc, 1, window.getSize());
+		//glUniform1f(scaleLoc, window.getScale());
+		//glUniform2fv(locationLoc, 1,window.getLocation());
+		
+		//uniform変数に値(float型の単一の変数)を設定する
+		//glUniform1f(aspectLoc, window.getAspect());
+
+		//透視投影変換行列を求める
+		const GLfloat* const size(window.getSize());
+		const GLfloat fovy(window.getScale() * 0.01f);
+		//const GLfloat scale(window.getScale() * 2.0f);
+		const GLfloat aspect(size[0] / size[1]);
+		//const GLfloat w(size[0] / scale), h(size[1] / scale);
+		const Matrix projection(Matrix::perspective(fovy, aspect, 1.0f, 10.0f));
+		//const Matrix projection(Matrix::frustum(-w, w, -h, h, 1.0f, 10.0f));
+		//const Matrix scaling(Matrix::scale(scale / size[0], scale / size[1], 1.0f));
+
+		//平行移動の変換行列を求める
+		//const GLfloat* const position(window.getLocation());
+		//const Matrix traslation(Matrix::translate(position[0], position[1], 0.0f));
+
+		//モデル変換行列を求める
+		//const Matrix model(traslation * scaling);
+		const GLfloat* const location(window.getLocation());
+		const Matrix r(Matrix::rotate(static_cast<GLfloat>(glfwGetTime()),
+			0.0f, 1.0f, 0.0f));
+		const Matrix model(Matrix::translate(location[0], location[1], 0.0f) * r);
+
+		//ビュー変換行列を求める
+		//0.0f, 0.0f, 0.0fが，目標点(原点)
+		const Matrix view(Matrix::lookat(3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f));
+		
+		//モデルビュー変換行列を求める
+		const Matrix modelview(view * model);
+
+		//uniform変数に値を設定する
+		//modelのメンバ配列matrixのポインタをdata()メソッドで取り出す
+		//配列変数を転置して格納する
+		glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, projection.data());
+		glUniformMatrix4fv(modelviewLoc, 1, GL_FALSE, modelview.data());
 
 		//図形を描画する
+		shape->draw();
+
+		//座標変換を一つ目の図形のモデルビュー変換の前に適応すると，二つ目の図形が一つ目の図形と一緒に動くようになる．
+		//二つ目のモデルビュー変換行列を求める
+		const Matrix modelview1(modelview * Matrix::translate(0.0f, 0.0f, 3.0f));
+
+		//uniform変数に値を設定する
+		glUniformMatrix4fv(modelviewLoc,1,GL_FALSE,modelview1.data());
+
+		//二つ目の図形を描画する
 		shape->draw();
 
 		//カラーバッファを入れ替える

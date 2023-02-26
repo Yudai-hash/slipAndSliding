@@ -10,10 +10,28 @@ class Window
 	//ウィンドウのハンドル
 	GLFWwindow* const window;
 
+	//ウィンドウのサイズ
+	//描画するウィンドウの幅と高さを保持する二つの要素の配列
+	GLfloat size[2];
+
+	//ワールド座標系に対するデバイス座標系の拡大率
+	GLfloat scale;
+
+	//縦横比aspectの代わりにscaleを使用する
+	////縦横比
+	//GLfloat aspect;
+
+	//図形の正規化デバイス座標系上での位置
+	GLfloat location[2];
+
+	//キーボードの状態
+	int keyStatus;
+
 public:
 	//コンストラクタ
 	Window(int width = 640, int height = 480, const char* title = "Hello")
 		:window(glfwCreateWindow(width, height, title, NULL, NULL))
+		, scale(100.0f),location{0.0f, 0.0f},keyStatus(GLFW_RELEASE)
 	{
 		if (window == NULL)
 		{
@@ -37,9 +55,21 @@ public:
 		//垂直同期のタイミングを待つ
 		glfwSwapInterval(1);
 
+		//このインスタンスwindowに対してpointerに指定したユーザ定義の任意のthisのポインタを記録しておく
+		glfwSetWindowUserPointer(window, this);
+
 		//ウィンドウのサイズ変更時に呼び出す処理(コールバック関数)の登録
 		//戻り値として，resizeが設定されている
 		glfwSetWindowSizeCallback(window, resize);
+
+		//マウスホイール操作時に呼び出す処理の登録
+		glfwSetScrollCallback(window, wheel);
+
+		//キーボード操作時に呼び出す処理の登録
+		glfwSetKeyCallback(window, keyboard);
+
+		//このインスタンスのthisポインタを記録しておく
+		glfwSetWindowUserPointer(window, this);
 
 		//開いたウィンドウの初期設定
 		resize(window, width, height);
@@ -52,13 +82,49 @@ public:
 		glfwDestroyWindow(window);
 	}
 	//描画ループの継続判定
+	//クラスのコンストラクタの宣言で，explicitをつけると，【1】コピーの初期化ができない，【2】暗黙の型変換ができない
 	explicit operator bool()
 	{
+		//イベントを取り出す(イベントが発生するまでプログラムを停止させる)
+		//glfwWaitEvents();
+
 		//イベントを取り出す
-		glfwWaitEvents();
+		//glfwWaitEvents()は，イベントの発生を待つ
+		//glfwPollEvents()は，イベントの発生を待たない(＝矢印キーを押した瞬間からスムーズに動き出す)
+		//if (keyStatus == GLFW_RELEASE)
+		//	glfwWaitEvents();
+		//else
+		//	glfwPollEvents();
+
+		glfwPollEvents();
+
+		//キーボードの状態を調べる
+		//1フレームあたり1画素動かす
+		if (glfwGetKey(window, GLFW_KEY_LEFT) != GLFW_RELEASE)
+			location[0] -= 2.0f / size[0];
+		else if (glfwGetKey(window, GLFW_KEY_RIGHT) != GLFW_RELEASE)
+			location[0] += 2.0f / size[0];
+		if (glfwGetKey(window, GLFW_KEY_DOWN) != GLFW_RELEASE)
+			location[1] -= 2.0f / size[1];
+		else if (glfwGetKey(window, GLFW_KEY_UP) != GLFW_RELEASE)
+			location[1] += 2.0f / size[1];
+
+
+
+		//マウスの左ボタンの状態を調べる
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) != GLFW_RELEASE)
+		{
+			//マウスの左ボタンが押されたら，マウスカーソルの位置を取得する
+			double x, y;
+			glfwGetCursorPos(window, &x, &y);
+
+			//マウスカーソルの正規化デバイス座標系上での位置を求める
+			location[0] = static_cast<GLfloat>(x) * 2.0f / size[0] - 1.0f;
+			location[1] = 1.0f - static_cast<GLfloat>(y) * 2.0f / size[1];
+		}
 
 		//ウィンドウを閉じる必要が無ければtrueを返す
-		return !glfwWindowShouldClose(window);
+		return !glfwWindowShouldClose(window) && !glfwGetKey(window,GLFW_KEY_ESCAPE);
 	}
 
 	//ダブルバッファリング
@@ -79,5 +145,61 @@ public:
 
 		//フレームバッファ全体をビューポートに設定する
 		glViewport(0, 0, fbWidth, fbHeight);
+
+		//このインスタンスのthisポインタを得る
+		//glfwGetWindowUserPointer(window)は，記録されたポインタを取り出す対象のウィンドウのハンドル
+		Window* const
+			instance(static_cast<Window*>(glfwGetWindowUserPointer(window)));
+
+		if (instance != NULL) 
+		{
+			//開いたウィンドウのサイズを保存する
+			instance->size[0] = static_cast<GLfloat>(width);
+			instance->size[1] = static_cast<GLfloat>(height);
+			//このインスタンスが保持する縦横比を更新する
+			//instance->aspect =
+			//	static_cast<GLfloat>(width) / static_cast<GLfloat>(height);
+		}
 	}
+
+	//マウスホイール操作時の処理
+	static void wheel(GLFWwindow* window, double x, double y)
+	{
+		Window* const
+			instance(static_cast<Window *>(glfwGetWindowUserPointer(window)));
+		if(instance != NULL)
+		{
+			//ワールド座標系に対するデバイス座標系の拡大率を更新する
+			instance->scale += static_cast<GLfloat>(y);
+		}
+	}
+
+	//キーボード操作時の処理
+	//コールバック関数として使うので，静的メンバ関数にする
+	static void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
+	{
+		//このインスタンスのthisポインタを得る
+		Window *const
+			instance(static_cast<Window*>(glfwGetWindowUserPointer(window)));
+
+			if (instance != NULL)
+			{
+				//キーの状態を保存する
+				instance->keyStatus = action;
+			}
+	}
+
+	//ウィンドウのサイズを取り出す
+	//sizeのポインタを取り出すメンバ関数getSize()
+	const GLfloat* getSize() const { return size; }
+
+	//ワールド座標系に対するデバイス座標系の拡大率を取り出す
+	//scaleのポインタを取り出すメンバ関数getScale
+	GLfloat getScale() const { return scale; }
+	
+	//縦横比を取り出す
+	//GLfloat getAspect() const { return aspect; }
+
+	//位置を取り出す
+	const GLfloat* getLocation() const { return location; }
 };
