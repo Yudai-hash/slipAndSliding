@@ -29,9 +29,11 @@ class Window
 
 public:
 	//コンストラクタ
-	Window(int width = 640, int height = 480, const char* title = "Hello")
+	//glfwCreateWindow()関数によりウィンドウを作成した直後は，ビューポートはウィンドウ全体に設定させる
+	//scale()(＝見たかったオブジェクトと見たくない背景部分の倍率を変えることができる)
+	Window(int width = 640, int height = 480, const char* title = "Which one is more human-like")
 		:window(glfwCreateWindow(width, height, title, NULL, NULL))
-		, scale(100.0f),location{0.0f, 0.0f},keyStatus(GLFW_RELEASE)
+		, scale(200.0f),location{0.0f, 0.0f},keyStatus(GLFW_RELEASE)
 	{
 		if (window == NULL)
 		{
@@ -53,6 +55,9 @@ public:
 		}
 
 		//垂直同期のタイミングを待つ
+		//垂直同期とは，ゲーム内のfpsの上限値を，モニタの最高性能までに設定する
+		//GPUの性能がモニタのリフレッシュレートを大きく上回った時に発生するティアリング
+		//を防ぐ機能．これは，描画途中の画像をディスプレイに表示してしまうことが原因
 		glfwSwapInterval(1);
 
 		//このインスタンスwindowに対してpointerに指定したユーザ定義の任意のthisのポインタを記録しておく
@@ -75,7 +80,7 @@ public:
 		resize(window, width, height);
 		
 	}
-	//デストラクタ
+	//デストラクタ=クラスと同じ名前をもつ，メンバ関数で，接頭辞に~(チルダ)をつける．
 	virtual ~Window()
 	{
 		//ウィンドウに設定させているコールバック関数は呼び出されなくなる
@@ -83,6 +88,8 @@ public:
 	}
 	//描画ループの継続判定
 	//クラスのコンストラクタの宣言で，explicitをつけると，【1】コピーの初期化ができない，【2】暗黙の型変換ができない
+	//explicit: 知らないうちに型が変わっているという心配をする必要がない
+	//戻り値の型名は，boolで確定するので，戻り値の型名をoperator演算子の前につける必要はない
 	explicit operator bool()
 	{
 		//イベントを取り出す(イベントが発生するまでプログラムを停止させる)
@@ -123,20 +130,24 @@ public:
 			location[1] = 1.0f - static_cast<GLfloat>(y) * 2.0f / size[1];
 		}
 
-		//ウィンドウを閉じる必要が無ければtrueを返す
+		//ウィンドウを閉じる必要が無ければTrueを返すで，ウィンドウを閉じる必要がある場合はFalseを返す
 		return !glfwWindowShouldClose(window) && !glfwGetKey(window,GLFW_KEY_ESCAPE);
 	}
 
 	//ダブルバッファリング
+	// void swapBuffers() const{}のようにconstをつけることによって，オブジェクトのメンバ変数を変更することができない．
+	//mutable member-variable-declaration;のように，mutableキーワードをつけることによって，
+	//クラスの非静的，非定数(static，constでない)のメンバ変数のみ指定できる．
+//mutableをつけることによって，メンバ変数に対してデータ変更を行うことができる．
 	void swapBuffers() const
 	{
 		//カラーバッファを入れ替える
 		glfwSwapBuffers(window);
 	}
 
-	//コールバック関数としてメンバ関数を使う場合には，静的メンバ関数である必要がある
+	//コールバック関数としてメンバ関数を使う場合には，静的メンバ関数(static)である必要がある
 	//ウィンドウのサイズ変更時の処理
-	static void resize(GLFWwindow* const window, int width, int height)
+	static void resize(GLFWwindow *const window, int width, int height)
 	{
 		//フレームバッファのサイズを調べ，調べたフレームバッファのサイズの，それぞれ幅と高さをポインタ
 		//に格納する
@@ -148,7 +159,7 @@ public:
 
 		//このインスタンスのthisポインタを得る
 		//glfwGetWindowUserPointer(window)は，記録されたポインタを取り出す対象のウィンドウのハンドル
-		Window* const
+		Window *const
 			instance(static_cast<Window*>(glfwGetWindowUserPointer(window)));
 
 		if (instance != NULL) 
@@ -191,6 +202,7 @@ public:
 
 	//ウィンドウのサイズを取り出す
 	//sizeのポインタを取り出すメンバ関数getSize()
+	//変数の値をクラス外から参照できるメンバ変数
 	const GLfloat* getSize() const { return size; }
 
 	//ワールド座標系に対するデバイス座標系の拡大率を取り出す

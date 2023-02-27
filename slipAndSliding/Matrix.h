@@ -20,10 +20,14 @@ class Matrix
 		//a: GLfloat型の16要素の配列
 		Matrix(const GLfloat *a)
 		{
+			//aからa+16までをmatrixにコピーする
 			std::copy(a,a + 16,matrix);
 		}
 
 		//行列の要素を右辺値として参照する
+		//添字演算子のオーバーロード
+		//const版と非constの二つを定義しておくことで，引数をconstで
+		//取る関数でも使用することができる
 		const GLfloat& operator[](std::size_t i) const
 		{
 			return matrix[i];
@@ -57,6 +61,7 @@ class Matrix
 			return t;
 		}
 
+		//同次座標(x,y,z,w)のw要素の値が0のとき，変換行列の影響を受けない
 		//(x,y,z)だけ平行移動する変換行列を作成する
 		static Matrix translate(GLfloat x, GLfloat y, GLfloat z)
 		{
@@ -187,7 +192,7 @@ class Matrix
 				const GLfloat lm(l * m), mn(m * n), nl(n * l);
 				const GLfloat c(cos(a)), c1(1.0f - c), s(sin(a));
 
-				t.loadIdentity();
+			   	t.loadIdentity();
 				t[0] = l2 + (1.0f - l2) * c;
 				t[1] = lm * c1 + n * s;
 				t[2] = nl * c1 - m * s;
@@ -197,13 +202,15 @@ class Matrix
 				t[8] = nl * c1 + m * s;;
 				t[9] = mn * c1 - l * s;
 				t[10] = n2 + (1.0f - n2) * c;
-
+			    std::cout << a << std::endl;
+	  
 				return t;
 			}
 			//回転軸の長さが0のときのエラー処理
 			else if (d == 0.0f) {
 				std::cout << "回転軸の長さが0です．" << std::endl;
 			}
+
 		}
 
 		////乗算　３重ループ

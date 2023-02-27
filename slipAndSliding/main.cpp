@@ -6,6 +6,11 @@
 //#define GLEW_STATIC
 //#include <GL/glew.h>
 
+//glfw API
+//https://www.glfw.org/docs/latest/group__context.html#ga6d4e0cdf151b5e579bd67f13202994ed
+//glew API
+//Where is glew API document 
+
 #include <cstdlib> //atexit()関数を定義しているヘッダファイルcstdlibを#includeする
 #include <iostream>
 #include <fstream> //ファイルの入出力を行う
@@ -19,6 +24,7 @@
 #include "ShapeIndex.h"
 #include "SolidShapeIndex.h"
 #include "SolidShape.h"
+
 
 //シェーダオブジェクトのコンパイル結果を表示する
 //shader: シェーダオブジェクト名
@@ -335,6 +341,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
 
     //ウィンドウを作成する
+	//Windowクラスのインスタンスであるwindowを生成する
 	Window window;
 
 
@@ -359,7 +366,7 @@ int main() {
 	////垂直同期のタイミングを待つ
 	//glfwSwapInterval(1);
 
-	//背景色を指定する
+	//背景色を指定する(ここで，背景色を変えることができる)
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
 	//背面カリングを有効にする
@@ -417,7 +424,8 @@ int main() {
 
 	//図形データを作成する
 	//１頂点あたりの要素数３，頂点数は１２
-	std::unique_ptr<const Shape> shape(new SolidShapeIndex(3, 36, solidCubeVertex,36,solidCubeIndex));
+	//new SolidShapeIndexは，クラスSolidShapeIndexをnewしたインスタンス
+	std::unique_ptr<const Shape> shape(new SolidShapeIndex(3, 36, solidCubeVertex, 36, solidCubeIndex));
 	
 	//タイマを0にセット
 	glfwSetTime(0.0);
@@ -426,11 +434,25 @@ int main() {
 	//glfwWindowShouldClose(window) == GL_FALSE
 	//↓
 	//window
-	while (window)
+	while (window.operator bool() == 1)
 	{
-		//ウィンドウを消去する
-		//GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BITとすることで，カラーバッファとデプスバッファを同時に塗りつぶすことができる
+		//while(window){}の部分をwindow.operator bool()とした
+		// == trueのところも明記した
+		// std::cout << window.operator bool() << std::endl;
+		// 
+		//operator演算子によって，Windowクラスのオブジェクトであるwindowは暗黙的にbool型に変換される
+		//static_castを使用しなくても，暗黙的な型変換を行うことができる
+		//
+		//static_castに関して，int*からchar*のようなポインタ型の変換は行うことができない
+		//ポインタ同士の変換は，reinterpret_castを使用する
+		
+		
+		//ウィンドウを消去する(glClear関数は，バッファーを事前に
+		// 設定された値にクリアする)
 		//デプスバッファに設定する深度を指定
+		//GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BITで，カラーバッファ
+		//(カラーライティングが有効になっているバッファー)とデプスバッファ
+		//(深度バッファー)を同時に塗りつぶす
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//シェーダオブジェクトの使用開始(図形の描写に使用するプログラムオブジェクトを指定する)
@@ -462,9 +484,8 @@ int main() {
 		//const Matrix model(traslation * scaling);
 		const GLfloat* const location(window.getLocation());
 		const Matrix r(Matrix::rotate(static_cast<GLfloat>(glfwGetTime()),
-			0.0f, 1.0f, 0.0f));
+			1.0f, 0.0f, 0.0f));
 		const Matrix model(Matrix::translate(location[0], location[1], 0.0f) * r);
-
 		//ビュー変換行列を求める
 		//0.0f, 0.0f, 0.0fが，目標点(原点)
 		const Matrix view(Matrix::lookat(3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f,
@@ -491,7 +512,7 @@ int main() {
 
 		//二つ目の図形を描画する
 		shape->draw();
-
+		
 		//カラーバッファを入れ替える
 		//glfwSwapBuffers(window);
 		//↓
